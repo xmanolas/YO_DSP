@@ -1,0 +1,386 @@
+// Music Technology Department - University of York //
+
+// Source Code for DSP module //
+
+
+//--------------------------------------------------------------------//
+
+
+//Ramp//
+
+//This program fills an array of integers with increasing values and then sends these values successively to the DAC producing a ramp//
+
+main(){
+
+
+//General Declarations//
+
+#define total 100 //The length of the array//
+volatile int *dac; //Memory mapped interfaces declarations//
+int num_seq[total]; //Array for storing the values of the ramp//
+int i, c=0; //Some counters//
+
+
+//Variable Initializing//
+
+dac    = (int *) 0xc20000; //Assign the memory mapped address//
+
+
+//Filling the array//
+
+for(i=0;i<total;i++){ //Looping for the length of the array//
+	num_seq[c]=i; //Filling each array position with a value//
+	c++; //Increase the counter//
+}
+
+
+//Continuous Loop//
+
+while(1){ //Main loop//
+	
+    for(i=0;i<total;i++){ //Looping increasingly//
+		*dac =	num_seq[i]; //Send value to DAC// 
+    }
+    
+    for(i=total-1;i>0;i--){ //Looping decreasingly//
+		*dac =	num_seq[i]; //Send value to DAC//
+    }
+
+}
+
+}
+
+
+//--------------------------------------------------------------------//
+
+
+//Timer//
+
+//This program allows the user to send a ramp of values to the DAC at specified rates using a timer// 
+
+
+main(){
+
+
+//General Declarations//
+
+#define total 100 //Defines the length of the array-ramp//
+volatile int *dac, *cntrlreg, *cntreg, *prdreg; //Memory mapped interface pointers//
+int i=0, count, temp, period; //Some counters and variables used in the program//
+int num_seq[total]; //Defines the array//
+
+
+//Memory mapped interfaces address definitions//
+
+dac    = (int *) 0xc30000; //Address of the DAC//
+cntrlreg = (int *)  0x808030; //Address of Control Register Timer//   
+cntreg = (int *) 0x808034; //Address of Accumulated Time Counter//  
+prdreg = (int *) 0x808038; //Address of the Period Register//  
+
+period=1000; //Defines the initial timer period//
+count=0; //Initializing//
+temp=0; //Initializing//
+
+
+//Filling the array//
+
+for(count=0;count<total;count++){ //Loop for the array length//
+	num_seq[count]=count; //Fill the array//
+}
+
+
+//Initializes and starts the timer//
+
+*cntrlreg=0; //Initializes the control register of the timer//	
+*cntreg=0; //Initializes the accumulated time counter//
+*prdreg=period; //Sets the period of the timer//
+*cntrlreg=0x3c1; //Starts the timer//
+
+
+//Continuous Loop//
+
+count=0;
+while(1){ //Main loop//
+
+	while((*cntrlreg & 2048) == temp); //Polls the timer//
+	*cntrlreg=0; //Initializes the control register of the timer//
+	*cntreg=0; //Initializes the accumulated time counter//
+	*prdreg=period;	//Sets the period of the timer//
+	*cntrlreg=0x3c1; //Starts the timer//
+	*dac=num_seq[count]; //Sends the array value to the DAC//
+	count++; //Increases the counter//
+	if(count==total) count=0; //Checks the array counter//
+	temp=*cntrlreg & 2048;	//Changes flag comparison variable// 
+
+}
+
+}
+
+
+
+//--------------------------------------------------------------------//
+
+//ADC 1//
+
+//This program uses the ADC to accept signal from a DC knob and modifies the reproduction rate of the samples sent to the DAC accordingly//
+
+
+main(){
+
+
+//General Declarations//
+
+#define total 100 //Defines the length of the array-ramp//
+volatile int *dac, *cntrlreg, *cntreg, *prdreg, *adcreg, *adcinput; //Memory mapped interfaces' pointers//
+int i=0, count, temp, period, j; //Some counters and variables used in the program//
+int num_seq[total]; //Defines the array//
+
+dac    = (int *) 0xc30000; //Address of the DAC//
+cntrlreg = (int *)  0x808030; //Address of Control Register Timer//   
+cntreg = (int *) 0x808034; //Address of Accumulated Time Counter//    
+prdreg = (int *) 0x808038; //Address of the Period Register//   
+adcinput	= (int *) 0xc10000; //Address of the ADC//
+adcreg = (int *) 0xc50000; //Address of the ADC Register//
+
+count=0; //Initializing//
+temp=0; //Initializing//
+j=0; //Initializing//
+
+
+//Filling the array//
+
+for(count=0;count<total;count++){ //Looping for the length of the array//
+	num_seq[count]=count; //Fill the array//
+}
+
+//Adjust the period of the timer according to the position (value) of the DC knob//
+
+*adcinput=0x59; //Starts ADC conversion at channel 1//			                 
+while((*adcreg & 2)!= 0); //Polls until the A/D conversion is complete// 
+period=*adcinput & 4095; //Stores the last 12 bits of the obtained value//
+*cntrlreg=0; //Initializes the control register of the timer//	
+*cntreg=0; //Initializes the accumulated time counter//
+*prdreg=period; //Changes the timer period// 
+*cntrlreg=0x3c1; //Starts the timer//
+
+
+//Continuous Loop//
+
+count=0;
+
+while(1){ //Main loop//
+	
+	while((*cntrlreg & 2048) == temp); //Polls the timer//
+	if(j==70){ //This reduces the ADC reading frequency//
+	*adcinput=0x59;	//Starts ADC conversion at channel 1//		
+	while((*adcreg & 2)!= 0); //Polls the ADC flag// 
+	period=*adcinput & 4095;  //Stores 12 bits of the DC value//
+	j=0; //Restarts the counter//
+	}
+
+*cntrlreg=0; //Initializes the control register of the timer//	
+*cntreg=0; //Initializes the accumulated time counter//
+*prdreg=period; //Changes the timer period// 
+*cntrlreg=0x3c1; //Starts the timer//
+*dac=num_seq[count]; //Sends the array value to the DAC//
+count++; //Increase counter//
+if(count==total) count=0; //Check the array counter//
+temp=*cntrlreg & 2048;	//Change variable for the busy bit// 	
+j++; //Increases the counter//
+
+}
+
+}
+
+
+//--------------------------------------------------------------------//
+
+//ADC 2//
+
+//This program uses the ADC to accept external sound signals, convert them to digital and then send them to the DAC. It also accepts signal from a DC knob and modifies the reproduction rate of the samples sent to the DAC// 
+
+
+main(){
+
+//General Declarations//
+
+volatile int *dac, *cntrlreg, *cntreg,  *adcreg, *adcinput, *prdreg; //Memory mapped interfaces' pointers//
+int temp; //Some counters and variables used in the program//
+int g; //Some counters and variables used in the program//
+int j, period; //Some counters and variables used in the program//
+
+adcinput	= (int *) 0xc10000; //Address of the ADC//
+adcreg = (int *) 0xc50000; //Address of the ADC Register//
+dac    = (int *) 0xc30000; //Address of the DAC//
+cntrlreg = (int *)  0x808030; //Address of Control Register Timer//   
+cntreg = (int *) 0x808034; //Address of Accumulated Time Counter//      
+prdreg = (int *) 0x808038; //Address of the Period Register//    
+
+
+j=0; //Initializing//
+temp=0; //Initializing//
+g=512; //Initializing//
+
+
+//Adjust the period of the timer according to the position (value) of the DC knob//
+
+*adcinput=0x59; //Starts ADC conversion at channel 1//		                 
+while((*adcreg & 2)!= 0); //Polls until the A/D conversion is complete// 
+period=*adcinput & 4095; //Stores the last 12 bits of the obtained value//
+*cntrlreg=0; //Initializes the control register of the timer//	
+*cntreg=0; //Initializes the accumulated time counter//
+*prdreg=period; //Changes the timer period// 
+*cntrlreg=0x3c1; //Starts the timer//
+
+//Continuous Loop//
+
+while(1){ //Main loop//
+
+while((*cntrlreg & 2048) == temp); //Polls the timer//
+if(j==70){ //This reduces the ADC reading frequency//
+	*adcinput=0x59;	//Starts ADC conversion at channel 1//		
+	while((*adcreg & 2)!= 0); //Polls the ADC flag// 
+	period=*adcinput & 4095;  //Stores 12 bits of the DC value//
+	j=0; //Restarts the counter//
+}
+
+*cntrlreg=0; //Initializes the control register of the timer//	
+*cntreg=0; //Initializes the accumulated time counter//
+*prdreg=period; //Changes the timer period// 
+*cntrlreg=0x3c1; //Starts the timer//
+*adcinput=0x58;	//Starts ADC conversion at channel 0//		                 
+
+while((*adcreg & 2)!= 0); //Polls the ADC flag//
+ 	if((*adcinput & g)==0) { //Checks the MSB//
+		*dac=(*adcinput & ((g*2)-1)) + g; //2's Complement conversion and defines the wordlength//
+	}
+	else { //Checks the MSB//
+		*dac=(*adcinput & ((g*2)-1)) - g; //2's Complement conversion and defines the wordlength//
+	}
+	
+	j++; //Increases counter//
+	temp=(*cntrlreg & 2048); //Change variable for the busy bit//
+	
+}
+
+}
+
+
+//--------------------------------------------------------------------//
+
+//Sampler//
+
+//This program samples an incoming signal and reproduces all or part of the sampled waveform//
+
+main(){
+
+//Main Declarations//
+
+#define total 2000 //Defines the length of the array for the samples//
+volatile int *dac, *adcreg, *adcinput; //Memory mapped interfaces' pointers//
+int temp, ft; //Some counters and variables used in the program//
+int   f, t, length; //Some counters and variables used in the program//
+int num_seq[total]; //The array for storing the samples//
+
+adcinput	= (int *) 0xc10000; //Address of the ADC//
+adcreg = (int *) 0xc50000; //Address of the ADC Register//
+dac    = (int *) 0xc30000; //Address of the DAC//
+
+//Sample signal through the ADC to the array//
+
+f=0;
+for(t=0;t<=total;t++){ //Loops for the length of the array//                     
+	*adcinput=0x58;	//Starts ADC conversion at channel 0//		                 
+	while((*adcreg & 2)!= 0); //Polls the ADC flag// 
+	if((*adcinput & 2048)==0) { //Checks the MSB//
+		num_seq[t]=(*adcinput & 4095) + 2048; //2's Complement conversion. Stores the converted value in the array//
+	}
+	else {
+		num_seq[t]=(*adcinput & 4095) - 2048; //2's Complement conversion. Stores the converted value in the array//
+	}
+
+}		
+
+
+//Sampled signal continuous reproduction loop//
+
+while(1){ //Main Loop//
+		
+	*adcinput=0x59; //Starts ADC conversion at channel 1//			                 
+	while((*adcreg & 2)!= 0); //Polls the ADC flag// 
+	length=*adcinput & 2047; //Sets the length of the array to be reproduced//
+	for(t=1;t<length;t++) *dac=num_seq[t]; //Sends the samples to the DAC//
+		
+}
+
+}
+
+
+//MIDI Sampler//
+
+//Parts of the following code belong to the Department of Electronics-University of York.//
+
+//This program samples an external sound signal and uses a MIDI keyboard to change the frequency/pitch of the sampled sound during reproduction//
+
+main(){
+
+//Main Declarations//
+
+#define total 2000 //Defines the length of the array for the samples//
+volatile int *dac, *adcreg, *adcinput; //Memory mapped interfaces' pointers//
+int x, y, temp, ft, cntr, step; //Some counters and variables used in the program//
+int  c=0, f,t; //Some counters and variables used in the program//
+int num_seq[total], length, addval=1; //Some counters and variables used in the program//
+int j; //Some counters and variables used in the program//
+int midiword, d, d3,r, i=0, mididata[3]; //Some counters and variables used in the program//
+volatile int *status, *midi_in; //Some counters and variables used in the program//
+
+midi_in = (int *)0xc60000; //Address of the MIDI input port//
+adcinput	= (int *) 0xc10000; //Address of the ADC//
+adcreg = (int *) 0xc50000; //Address of the ADC Register//
+dac    = (int *) 0xc30000; //Address of the DAC//
+   
+length=2000; //Initializing//
+cntr=0; //Initializing//
+step=1; //Initializing//
+f=0; //Initializing//
+
+
+//Sample signal through the ADC to the array//
+
+for(t=0;t<=total;t++){ //Loops for the length of the array//                    
+	*adcinput=0x58; //Starts ADC conversion at channel 0//			                 
+	while((*adcreg & 2)!= 0); //Polls the ADC flag// 
+	if((*adcinput & 2048)==0) { //Checks the MSB//
+		num_seq[t]=(*adcinput & 4095) + 2048; //2's Complement conversion. Stores the converted value in the array//
+	}
+	else {
+		num_seq[t]=(*adcinput & 4095) - 2048; //2's Complement conversion. Stores the converted value in the array//
+	}
+
+}		
+
+
+//Continuous Loop//
+
+step = 1;
+while(1){ //Main Loop//
+     
+	midiword = *midi_in & 0x0ff; //Stores masked MIDI word into a variable//   
+
+	if(midiword != 0xfe){  //Do this only if not active sensing message//
+		if( midiword>48 && midiword<97) step=97-midiword; //Checks if the note is in the range of the MIDI keyboard//
+	}
+	
+	for(t=1;t<length;t++) { //Loops for the length of the array//
+		cntr++; //Increases counter//
+		if(cntr==step){ //Checks the sample skipping step//
+			*dac=num_seq[t]; //Sends the sample to the DAC//
+			cntr=0; //Restarts the counter//
+	}
+			
+	}
+
+}
+
+}
