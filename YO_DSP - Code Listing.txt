@@ -12,7 +12,6 @@
 
 main(){
 
-
 //General Declarations//
 
 #define total 100 //The length of the array//
@@ -20,11 +19,9 @@ volatile int *dac; //Memory mapped interfaces declarations//
 int num_seq[total]; //Array for storing the values of the ramp//
 int i, c=0; //Some counters//
 
-
 //Variable Initializing//
 
 dac    = (int *) 0xc20000; //Assign the memory mapped address//
-
 
 //Filling the array//
 
@@ -32,7 +29,6 @@ for(i=0;i<total;i++){ //Looping for the length of the array//
 	num_seq[c]=i; //Filling each array position with a value//
 	c++; //Increase the counter//
 }
-
 
 //Continuous Loop//
 
@@ -58,9 +54,7 @@ while(1){ //Main loop//
 
 //This program allows the user to send a ramp of values to the DAC at specified rates using a timer// 
 
-
 main(){
-
 
 //General Declarations//
 
@@ -81,13 +75,11 @@ period=1000; //Defines the initial timer period//
 count=0; //Initializing//
 temp=0; //Initializing//
 
-
 //Filling the array//
 
 for(count=0;count<total;count++){ //Loop for the array length//
 	num_seq[count]=count; //Fill the array//
 }
-
 
 //Initializes and starts the timer//
 
@@ -95,7 +87,6 @@ for(count=0;count<total;count++){ //Loop for the array length//
 *cntreg=0; //Initializes the accumulated time counter//
 *prdreg=period; //Sets the period of the timer//
 *cntrlreg=0x3c1; //Starts the timer//
-
 
 //Continuous Loop//
 
@@ -117,16 +108,14 @@ while(1){ //Main loop//
 }
 
 
-
 //--------------------------------------------------------------------//
+
 
 //ADC 1//
 
 //This program uses the ADC to accept signal from a DC knob and modifies the reproduction rate of the samples sent to the DAC accordingly//
 
-
 main(){
-
 
 //General Declarations//
 
@@ -146,7 +135,6 @@ count=0; //Initializing//
 temp=0; //Initializing//
 j=0; //Initializing//
 
-
 //Filling the array//
 
 for(count=0;count<total;count++){ //Looping for the length of the array//
@@ -162,7 +150,6 @@ period=*adcinput & 4095; //Stores the last 12 bits of the obtained value//
 *cntreg=0; //Initializes the accumulated time counter//
 *prdreg=period; //Changes the timer period// 
 *cntrlreg=0x3c1; //Starts the timer//
-
 
 //Continuous Loop//
 
@@ -195,10 +182,10 @@ j++; //Increases the counter//
 
 //--------------------------------------------------------------------//
 
+
 //ADC 2//
 
 //This program uses the ADC to accept external sound signals, convert them to digital and then send them to the DAC. It also accepts signal from a DC knob and modifies the reproduction rate of the samples sent to the DAC// 
-
 
 main(){
 
@@ -216,11 +203,9 @@ cntrlreg = (int *)  0x808030; //Address of Control Register Timer//
 cntreg = (int *) 0x808034; //Address of Accumulated Time Counter//      
 prdreg = (int *) 0x808038; //Address of the Period Register//    
 
-
 j=0; //Initializing//
 temp=0; //Initializing//
 g=512; //Initializing//
-
 
 //Adjust the period of the timer according to the position (value) of the DC knob//
 
@@ -268,6 +253,7 @@ while((*adcreg & 2)!= 0); //Polls the ADC flag//
 
 //--------------------------------------------------------------------//
 
+
 //Sampler//
 
 //This program samples an incoming signal and reproduces all or part of the sampled waveform//
@@ -301,7 +287,6 @@ for(t=0;t<=total;t++){ //Loops for the length of the array//
 
 }		
 
-
 //Sampled signal continuous reproduction loop//
 
 while(1){ //Main Loop//
@@ -314,6 +299,9 @@ while(1){ //Main Loop//
 }
 
 }
+
+
+//--------------------------------------------------------------------//
 
 
 //MIDI Sampler//
@@ -345,7 +333,6 @@ cntr=0; //Initializing//
 step=1; //Initializing//
 f=0; //Initializing//
 
-
 //Sample signal through the ADC to the array//
 
 for(t=0;t<=total;t++){ //Loops for the length of the array//                    
@@ -359,7 +346,6 @@ for(t=0;t<=total;t++){ //Loops for the length of the array//
 	}
 
 }		
-
 
 //Continuous Loop//
 
